@@ -3,10 +3,12 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyCujvHA71n_ue57JrUhCQvRcdT7azZOwlY',
+  apiKey: 'AIzaSyAOekIEl6Nj88oFo6JJNgco6jfu2NIeM6U',
   authDomain: 'lostcity-screenshots.firebaseapp.com',
   projectId: 'lostcity-screenshots',
-  appId: '1:709279364806:web:lostcityscreenshots',
+  storageBucket: 'lostcity-screenshots.firebasestorage.app',
+  messagingSenderId: '349558405068',
+  appId: '1:349558405068:web:39c678610f539794d28f69',
 }
 
 const app = initializeApp(firebaseConfig)
