@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import CompareView from './views/CompareView.vue'
 import HighscoresView from './views/HighscoresView.vue'
 import HistoryView from './views/HistoryView.vue'
+import ModerateView from './views/ModerateView.vue'
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -9,5 +10,6 @@ export const router = createRouter({
     { path: '/', component: CompareView },
     { path: '/highscores', component: HighscoresView },
     { path: '/history', component: HistoryView },
+    { path: '/moderate', component: ModerateView },
   ],
 })

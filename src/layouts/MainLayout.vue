@@ -19,6 +19,8 @@
         <router-link to="/highscores">Highscores</router-link>
         <span class="white"> - </span>
         <router-link to="/history">History</router-link>
+        <span class="white"> - </span>
+        <router-link to="/moderate">Moderate</router-link>
       </div>
 
       <!-- Content -->

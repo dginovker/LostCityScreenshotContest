@@ -38,12 +38,15 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../firebase'
-import images from '../data/images.json'
+import allImages from '../data/images.json'
 import { recordVote, getImageStatsBatch, getImageStats as getImageStatsService } from '../services/voting'
+import { loadHiddenIds } from '../services/moderation'
 import type { ImageStats } from '../services/voting'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ImageCard from '../components/ImageCard.vue'
 import type { ImageEntry } from '../components/ImageCard.vue'
+
+let images: typeof allImages = allImages
 
 const currentPair = ref<[ImageEntry, ImageEntry]>([
   images[0] as ImageEntry,
@@ -119,7 +122,11 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  const hiddenIds = await loadHiddenIds()
+  if (hiddenIds.size > 0) {
+    images = allImages.filter(img => !hiddenIds.has(img.id))
+  }
   if (images.length >= 2) selectPair()
   window.addEventListener('keydown', onKeyDown)
 
