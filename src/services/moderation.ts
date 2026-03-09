@@ -1,5 +1,5 @@
-import { doc, setDoc, deleteDoc, getDocs, collection, writeBatch } from 'firebase/firestore'
-import { db } from '../firebase'
+import { doc, setDoc, deleteDoc, getDocs, collection, writeBatch, addDoc, Timestamp } from 'firebase/firestore'
+import { auth, db } from '../firebase'
 
 let hiddenIds: Set<string> | null = null
 
@@ -53,4 +53,35 @@ export async function unhideMany(ids: string[]): Promise<void> {
     }
     await batch.commit()
   }
+}
+
+export interface Report {
+  imageId: string
+  userId: string
+  reason: string
+  timestamp: Date
+}
+
+export async function loadReports(): Promise<Report[]> {
+  const snapshot = await getDocs(collection(db, 'reports'))
+  return snapshot.docs.map(d => {
+    const data = d.data()
+    return {
+      imageId: data.imageId,
+      userId: data.userId,
+      reason: data.reason,
+      timestamp: data.timestamp?.toDate() ?? new Date(),
+    }
+  })
+}
+
+export async function reportNotRelevant(imageId: string): Promise<void> {
+  const userId = auth.currentUser?.uid
+  if (!userId) throw new Error('Must be signed in to report')
+  await addDoc(collection(db, 'reports'), {
+    imageId,
+    userId,
+    reason: 'not_relevant',
+    timestamp: Timestamp.now(),
+  })
 }

@@ -23,11 +23,20 @@
         </a>
       </div>
     </template>
+    <button
+      class="report-btn"
+      :disabled="reported"
+      title="Not relevant / too small"
+      @click.stop="onReport"
+    >
+      {{ reported ? 'Reported' : 'Report Issue' }}
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { reportNotRelevant } from '../services/moderation'
 
 export interface ImageEntry {
   id: string
@@ -63,6 +72,13 @@ const winRateText = computed(() => {
   const pct = Math.round((props.stats.wins / props.stats.comparisons) * 100)
   return `${pct}% (${props.stats.wins}/${props.stats.comparisons})`
 })
+
+const reported = ref(false)
+
+function onReport() {
+  reported.value = true
+  reportNotRelevant(props.image.id)
+}
 
 function onHover(e: MouseEvent) {
   if (!props.revealed) (e.currentTarget as HTMLElement).style.borderColor = '#ff3030'
@@ -114,5 +130,24 @@ function onLeave(e: MouseEvent) {
   font-size: 11px;
   margin-top: 2px;
   word-break: break-word;
+}
+
+.report-btn {
+  margin-top: 6px;
+  padding: 2px 8px;
+  background: transparent;
+  color: #888;
+  border: 1px solid #555;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+}
+.report-btn:hover:not(:disabled) {
+  color: #ff5555;
+  border-color: #ff5555;
+}
+.report-btn:disabled {
+  color: #555;
+  cursor: default;
 }
 </style>

@@ -37,6 +37,32 @@
 
     </template>
 
+    <template v-if="reportedImages.length > 0">
+      <p class="yellow" style="text-align:center;font-weight:bold;margin-top:16px;margin-bottom:8px">
+        Reported Images ({{ reportedImages.length }})
+      </p>
+      <div
+        ref="reportGridRef"
+        class="grid"
+        @mousedown.prevent="onMouseDown"
+        @mousemove="onMouseMove"
+        @mouseup="onMouseUp"
+      >
+        <div
+          v-for="r in reportedImages"
+          :key="r.image.id"
+          :data-id="r.image.id"
+          class="grid-item"
+          :class="{ 'grid-selected': selected.has(r.image.id) }"
+        >
+          <img :src="r.image.url" :alt="r.image.topicTitle" loading="lazy" class="grid-thumb" draggable="false" />
+          <span class="report-badge">{{ r.count }}</span>
+        </div>
+
+        <div v-if="dragging" class="select-rect" :style="rectStyle"></div>
+      </div>
+    </template>
+
     <div style="text-align:center;margin-top:8px">
       <router-link to="/" class="green">Back to Compare</router-link>
     </div>
@@ -58,7 +84,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import allImages from '../data/images.json'
-import { loadHiddenIds, hideMany } from '../services/moderation'
+import { loadHiddenIds, hideMany, loadReports } from '../services/moderation'
+import type { Report } from '../services/moderation'
 import MainLayout from '@/layouts/MainLayout.vue'
 
 const images = allImages
@@ -68,6 +95,18 @@ const selected = ref(new Set<string>())
 const modalImage = ref<typeof allImages[0] | null>(null)
 
 const imageMap = new Map(allImages.map(img => [img.id, img]))
+const reports = ref<Report[]>([])
+
+const reportedImages = computed(() => {
+  const counts = new Map<string, number>()
+  for (const r of reports.value) {
+    counts.set(r.imageId, (counts.get(r.imageId) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([id, count]) => ({ image: imageMap.get(id), count }))
+    .filter((r): r is { image: typeof allImages[0]; count: number } => r.image != null && !hidden.value.has(r.image.id))
+    .sort((a, b) => b.count - a.count)
+})
 
 const hiddenCount = computed(() => hidden.value.size)
 
@@ -75,6 +114,8 @@ const visibleImages = computed(() => images.filter(img => !hidden.value.has(img.
 
 // --- Drag-to-select ---
 const gridRef = ref<HTMLElement | null>(null)
+const reportGridRef = ref<HTMLElement | null>(null)
+let activeGrid: HTMLElement | null = null
 const dragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 const dragEnd = ref({ x: 0, y: 0 })
@@ -95,7 +136,8 @@ const rectStyle = computed(() => {
 const dragMoved = ref(false)
 
 function onMouseDown(e: MouseEvent) {
-  if (!gridRef.value) return
+  const grid = (e.currentTarget as HTMLElement)
+  if (!grid) return
   // Ctrl+click opens modal, don't start drag
   if (e.ctrlKey || e.metaKey) {
     const target = (e.target as HTMLElement).closest('.grid-item') as HTMLElement | null
@@ -104,9 +146,10 @@ function onMouseDown(e: MouseEvent) {
     }
     return
   }
-  const rect = gridRef.value.getBoundingClientRect()
-  const x = e.clientX - rect.left + gridRef.value.scrollLeft
-  const y = e.clientY - rect.top + gridRef.value.scrollTop
+  activeGrid = grid
+  const rect = grid.getBoundingClientRect()
+  const x = e.clientX - rect.left + grid.scrollLeft
+  const y = e.clientY - rect.top + grid.scrollTop
   dragStart.value = { x, y }
   dragEnd.value = { x, y }
   dragging.value = true
@@ -114,11 +157,11 @@ function onMouseDown(e: MouseEvent) {
 }
 
 function onMouseMove(e: MouseEvent) {
-  if (!dragging.value || !gridRef.value) return
+  if (!dragging.value || !activeGrid) return
   dragMoved.value = true
-  const rect = gridRef.value.getBoundingClientRect()
-  const x = e.clientX - rect.left + gridRef.value.scrollLeft
-  const y = e.clientY - rect.top + gridRef.value.scrollTop
+  const rect = activeGrid.getBoundingClientRect()
+  const x = e.clientX - rect.left + activeGrid.scrollLeft
+  const y = e.clientY - rect.top + activeGrid.scrollTop
   dragEnd.value = { x, y }
 
   updateSelectionFromRect()
@@ -127,6 +170,7 @@ function onMouseMove(e: MouseEvent) {
 function onMouseUp(e: MouseEvent) {
   if (!dragging.value) return
   dragging.value = false
+  activeGrid = null
 
   // If mouse didn't move, treat as a click — toggle the item under cursor
   if (!dragMoved.value) {
@@ -144,24 +188,22 @@ function onMouseUp(e: MouseEvent) {
 }
 
 function updateSelectionFromRect() {
-  if (!gridRef.value) return
+  if (!activeGrid) return
 
   const rx1 = Math.min(dragStart.value.x, dragEnd.value.x)
   const ry1 = Math.min(dragStart.value.y, dragEnd.value.y)
   const rx2 = Math.max(dragStart.value.x, dragEnd.value.x)
   const ry2 = Math.max(dragStart.value.y, dragEnd.value.y)
 
-  const gridRect = gridRef.value.getBoundingClientRect()
-  const items = gridRef.value.querySelectorAll('.grid-item')
+  const gridRect = activeGrid.getBoundingClientRect()
+  const items = activeGrid.querySelectorAll('.grid-item')
   const next = new Set(selected.value)
 
-  // Remove items previously added by drag (we'll re-add intersecting ones)
-  // We track which items are in the current drag rect
   items.forEach((el) => {
     const id = (el as HTMLElement).dataset.id!
     const elRect = el.getBoundingClientRect()
-    const ex1 = elRect.left - gridRect.left + gridRef.value!.scrollLeft
-    const ey1 = elRect.top - gridRect.top + gridRef.value!.scrollTop
+    const ex1 = elRect.left - gridRect.left + activeGrid!.scrollLeft
+    const ey1 = elRect.top - gridRect.top + activeGrid!.scrollTop
     const ex2 = ex1 + elRect.width
     const ey2 = ey1 + elRect.height
 
@@ -191,7 +233,9 @@ function onKeyDown(e: KeyboardEvent) {
 }
 
 onMounted(async () => {
-  hidden.value = await loadHiddenIds()
+  const [hiddenIds, reportList] = await Promise.all([loadHiddenIds(), loadReports()])
+  hidden.value = hiddenIds
+  reports.value = reportList
   loading.value = false
   window.addEventListener('keydown', onKeyDown)
 })
@@ -316,5 +360,17 @@ onUnmounted(() => {
 .modal-meta {
   margin-top: 8px;
   font-size: 13px;
+}
+
+.report-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #E10505;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 </style>
