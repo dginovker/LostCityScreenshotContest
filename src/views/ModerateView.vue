@@ -16,7 +16,6 @@
       </div>
 
       <div
-        ref="gridRef"
         class="grid"
         @mousedown.prevent="onMouseDown"
         @mousemove="onMouseMove"
@@ -42,7 +41,6 @@
         Reported Images ({{ reportedImages.length }})
       </p>
       <div
-        ref="reportGridRef"
         class="grid"
         @mousedown.prevent="onMouseDown"
         @mousemove="onMouseMove"
@@ -113,8 +111,6 @@ const hiddenCount = computed(() => hidden.value.size)
 const visibleImages = computed(() => images.filter(img => !hidden.value.has(img.id)))
 
 // --- Drag-to-select ---
-const gridRef = ref<HTMLElement | null>(null)
-const reportGridRef = ref<HTMLElement | null>(null)
 let activeGrid: HTMLElement | null = null
 const dragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
