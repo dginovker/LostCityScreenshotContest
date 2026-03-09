@@ -81,6 +81,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../firebase'
 import allImages from '../data/images.json'
 import { loadHiddenIds, hideMany, loadReports } from '../services/moderation'
 import type { Report } from '../services/moderation'
@@ -228,10 +230,19 @@ function onKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') modalImage.value = null
 }
 
+function waitForAuth(): Promise<void> {
+  return new Promise(resolve => {
+    if (auth.currentUser) { resolve(); return }
+    const unsub = onAuthStateChanged(auth, user => {
+      if (user) { unsub(); resolve() }
+    })
+  })
+}
+
 onMounted(async () => {
-  const [hiddenIds, reportList] = await Promise.all([loadHiddenIds(), loadReports()])
+  const [hiddenIds] = await Promise.all([loadHiddenIds(), waitForAuth()])
   hidden.value = hiddenIds
-  reports.value = reportList
+  reports.value = await loadReports()
   loading.value = false
   window.addEventListener('keydown', onKeyDown)
 })
