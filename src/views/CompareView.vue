@@ -60,6 +60,7 @@ const pairStats = ref<[ImageStats, ImageStats]>([
   { wins: 0, comparisons: 0 },
   { wins: 0, comparisons: 0 },
 ])
+const prefetchedStats = ref<[ImageStats, ImageStats] | null>(null)
 
 const previousPairKeys = new Set<string>()
 
@@ -78,23 +79,44 @@ function selectPair() {
         previousPairKeys.delete(first)
       }
       currentPair.value = [images[i] as ImageEntry, images[j] as ImageEntry]
+      prefetchStats()
       return
     }
     attempts++
   }
 }
 
-async function onPick(index: number) {
+function prefetchStats() {
+  const pair = currentPair.value
+  getImageStatsBatch([pair[0].id, pair[1].id]).then(stats => {
+    prefetchedStats.value = [stats[0]!, stats[1]!]
+  })
+}
+
+function onPick(index: number) {
   if (revealed.value) return
   selectedIndex.value = index
 
   const winner = currentPair.value[index]!
   const loser = currentPair.value[1 - index]!
 
-  await recordVote(winner.id, loser.id)
-  const stats = await getImageStatsBatch([currentPair.value[0].id, currentPair.value[1].id])
-  pairStats.value = [stats[0]!, stats[1]!]
+  // Optimistic stats: apply +1 locally from prefetched data
+  const base = prefetchedStats.value ?? [{ wins: 0, comparisons: 0 }, { wins: 0, comparisons: 0 }]
+  const winnerBase = base[index]!
+  const loserBase = base[1 - index]!
+  pairStats.value = index === 0
+    ? [
+        { wins: winnerBase.wins + 1, comparisons: winnerBase.comparisons + 1 },
+        { wins: loserBase.wins, comparisons: loserBase.comparisons + 1 },
+      ]
+    : [
+        { wins: loserBase.wins, comparisons: loserBase.comparisons + 1 },
+        { wins: winnerBase.wins + 1, comparisons: winnerBase.comparisons + 1 },
+      ]
   revealed.value = true
+
+  // Fire vote write in background
+  recordVote(winner.id, loser.id)
 }
 
 function nextRound() {
@@ -102,6 +124,7 @@ function nextRound() {
   selectedIndex.value = -1
   highlightedIndex.value = -1
   pairStats.value = [{ wins: 0, comparisons: 0 }, { wins: 0, comparisons: 0 }]
+  prefetchedStats.value = null
   selectPair()
 }
 
