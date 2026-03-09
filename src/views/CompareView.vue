@@ -1,6 +1,9 @@
 <template>
   <MainLayout>
-    <template v-if="images.length < 2">
+    <template v-if="!ready">
+      <p class="white" style="text-align: center;">Loading...</p>
+    </template>
+    <template v-else-if="images.length < 2">
       <p class="white" style="text-align: center;">Not enough images to compare</p>
     </template>
     <template v-else>
@@ -48,10 +51,8 @@ import type { ImageEntry } from '../components/ImageCard.vue'
 
 let images: typeof allImages = allImages
 
-const currentPair = ref<[ImageEntry, ImageEntry]>([
-  images[0] as ImageEntry,
-  images[1] as ImageEntry,
-])
+const ready = ref(false)
+const currentPair = ref<[ImageEntry, ImageEntry]>(null as any)
 const revealed = ref(false)
 const selectedIndex = ref(-1)
 const highlightedIndex = ref(-1)
@@ -128,6 +129,7 @@ onMounted(async () => {
     images = allImages.filter(img => !hiddenIds.has(img.id))
   }
   if (images.length >= 2) selectPair()
+  ready.value = true
   window.addEventListener('keydown', onKeyDown)
 
   if (import.meta.env.DEV) {

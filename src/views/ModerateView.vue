@@ -9,14 +9,6 @@
     </template>
 
     <template v-else>
-      <div style="text-align:center;margin-bottom:8px">
-        <span class="white">Page {{ page + 1 }} / {{ totalPages }}</span>
-        <div style="margin-top:4px">
-          <button class="nav-btn b" :disabled="page === 0" @click="page--">&lt; Prev</button>
-          <button class="nav-btn b" :disabled="page >= totalPages - 1" @click="page++">Next &gt;</button>
-        </div>
-      </div>
-
       <div v-if="selected.size > 0" class="action-bar">
         <span class="white">{{ selected.size }} selected</span>
         <button class="action-btn b discard-btn" @click="discardSelected">Discard</button>
@@ -31,7 +23,7 @@
         @mouseup="onMouseUp"
       >
         <div
-          v-for="img in pageImages"
+          v-for="img in visibleImages"
           :key="img.id"
           :data-id="img.id"
           class="grid-item"
@@ -43,10 +35,6 @@
         <div v-if="dragging" class="select-rect" :style="rectStyle"></div>
       </div>
 
-      <div style="text-align:center;margin-top:8px">
-        <button class="nav-btn b" :disabled="page === 0" @click="page--">&lt; Prev</button>
-        <button class="nav-btn b" :disabled="page >= totalPages - 1" @click="page++">Next &gt;</button>
-      </div>
     </template>
 
     <div style="text-align:center;margin-top:8px">
@@ -73,13 +61,10 @@ import allImages from '../data/images.json'
 import { loadHiddenIds, hideMany } from '../services/moderation'
 import MainLayout from '@/layouts/MainLayout.vue'
 
-const PER_PAGE = 1000
-
 const images = allImages
 const loading = ref(true)
 const hidden = ref(new Set<string>())
 const selected = ref(new Set<string>())
-const page = ref(0)
 const modalImage = ref<typeof allImages[0] | null>(null)
 
 const imageMap = new Map(allImages.map(img => [img.id, img]))
@@ -87,13 +72,6 @@ const imageMap = new Map(allImages.map(img => [img.id, img]))
 const hiddenCount = computed(() => hidden.value.size)
 
 const visibleImages = computed(() => images.filter(img => !hidden.value.has(img.id)))
-
-const totalPages = computed(() => Math.ceil(visibleImages.value.length / PER_PAGE))
-
-const pageImages = computed(() => {
-  const start = page.value * PER_PAGE
-  return visibleImages.value.slice(start, start + PER_PAGE)
-})
 
 // --- Drag-to-select ---
 const gridRef = ref<HTMLElement | null>(null)
@@ -235,8 +213,8 @@ onUnmounted(() => {
 
 .grid-item {
   position: relative;
-  width: 120px;
-  height: 80px;
+  width: 200px;
+  height: 140px;
   overflow: hidden;
   border: 2px solid transparent;
 }
